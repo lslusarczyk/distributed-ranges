@@ -137,7 +137,8 @@ public:
   using allocator_type = Allocator;
 
   distributed_vector(std::size_t count = 0) {
-    assert(dr::shp::devices().size() > 0);
+    assert(devices().size() > 0);
+    static_assert(std::is_same_v<Allocator, shp::device_allocator<T>>);
     size_ = count;
     segment_size_ =
         (count + dr::shp::devices().size() - 1) / dr::shp::devices().size();
