@@ -4,6 +4,8 @@
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
+add_compile_options(-Wno-error=cuda-compat)
+
 # tested with a variable number of ranks
 add_executable(
   mhp-tests
@@ -67,4 +69,5 @@ if(ENABLE_SYCL)
   add_mpi_test(mhp-sycl-tests-4 mhp-tests 4 --sycl --gtest_filter=-*Slide*)
   add_mpi_test(mhp-sycl-tests-3-only mhp-tests-3 3 --sycl
                --gtest_filter=-*Slide*)
+  add_mpi_test(mhp-sycl-sort-tests-3 mhp-tests 3 --sycl --gtest_filter=*Sort*)
 endif()
