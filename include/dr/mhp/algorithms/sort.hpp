@@ -65,7 +65,7 @@ void dist_sort(R &r, Compare &&comp) {
    * segment into equal parts */
 
   for (std::size_t _i = 0; _i < rng::size(vec_lmedians); _i++) {
-    vec_lmedians[_i] = lsegment[(std::size_t)(_i + 1) * _step];
+    vec_lmedians[_i] = lsegment[(_i + 1) * _step];
   }
 
   default_comm().all_gather(vec_lmedians, vec_gmedians);
@@ -95,7 +95,9 @@ void dist_sort(R &r, Compare &&comp) {
       vec_split_i[vidx] = segidx;
       vec_split_s[vidx - 1] = vec_split_i[vidx] - vec_split_i[vidx - 1];
       std::size_t _sum = std::reduce(vec_split_s.begin(), vec_split_s.end());
+      assert(_sum == segidx);
       if (_sum > rng::size(lsegment)) {
+        assert(false);
         vec_split_s[vidx - 1] -= _sum - rng::size(lsegment);
       }
       vidx++;
