@@ -14,7 +14,7 @@ AnalysisCase = namedtuple("AnalysisCase", "target size ranks")
 AnalysisConfig = namedtuple(
     "AnalysisConfig",
     (
-        "prefix benchmark_filter reps dry_run mhp_bench shp_bench "
+        "prefix benchmark_filter reps dry_run mhp_bench shp_bench runner "
         "weak_scaling different_devices ranks_per_node"
     ),
 )
@@ -25,10 +25,11 @@ class Runner:
         self.analysis_config = analysis_config
 
     def __execute(self, command: str):
+        if self.analysis_config.dry_run:
+            command += " --benchmark_list_tests"
         logging.info(f"running command: {command}")
         usage_start = resource.getrusage(resource.RUSAGE_CHILDREN)
-        if not self.analysis_config.dry_run:
-            subprocess.run(command, shell=True, check=True)
+        subprocess.run(command, shell=True, check=True)
         usage_end = resource.getrusage(resource.RUSAGE_CHILDREN)
         logging.info(
             f"command execution time, "
@@ -62,7 +63,9 @@ class Runner:
             mpirun_params.append(f"-ppn {str(ranks_per_node)}")
         self.__execute(
             env
-            + " mpirun "
+            + " "
+            + self.analysis_config.runner
+            + " "
             + " ".join(mpirun_params)
             + " "
             + self.analysis_config.mhp_bench

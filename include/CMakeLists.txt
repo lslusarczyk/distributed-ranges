@@ -5,7 +5,7 @@
 FetchContent_Declare(
   dpl
   GIT_REPOSITORY https://github.com/oneapi-src/oneDPL.git
-  GIT_TAG 40f53fdef934e32365ea74daadf09680c961ee51)
+  GIT_TAG 6179c165dde3e966602c3cb4de927cdf1a351c5d)
 FetchContent_MakeAvailable(dpl)
 
 # mpi:  multi-process

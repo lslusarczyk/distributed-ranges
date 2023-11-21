@@ -212,6 +212,11 @@ if(ENABLE_ISHMEM)
         ./${name} --log --logprefix=${test_name} ${ARGN} COMMAND_EXPAND_LISTS)
   endfunction()
 
+  function(target_link_ishmem exec_name)
+    target_link_libraries(${exec_name} ze_loader pmi_simple sma)
+    target_link_libraries(${exec_name} ${CMAKE_BINARY_DIR}/lib/libishmem.a)
+  endfunction()
+
   add_compile_definitions(DRISHMEM)
 
 else()
@@ -221,6 +226,10 @@ else()
              COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${processes}
                      ${MPIEXEC_PREFLAGS} ./${name} ${ARGN} COMMAND_EXPAND_LISTS)
     set_property(TEST ${test_name} PROPERTY LABELS TESTLABEL MHP)
+  endfunction()
+
+  function(target_link_ishmem exec_name)
+
   endfunction()
 
 endif()

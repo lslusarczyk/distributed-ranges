@@ -54,13 +54,17 @@ int main(int argc, char *argv[]) {
   comm_rank = rank;
   ranks = size;
 
-  // Only rank 0 does file output
-  if (comm_rank != 0) {
-    for (int i = 0; i < argc; ++i) {
-      auto param = std::string(argv[i]);
-      if (param.starts_with("--benchmark_out=")) {
-        *argv[i] = 0;
-      }
+  bool dry_run = false;
+  for (int i = 0; i < argc; ++i) {
+    auto param = std::string(argv[i]);
+    if (comm_rank != 0 && param.starts_with("--benchmark_out=")) {
+      // Only rank 0 does file output
+      *argv[i] = 0;
+    }
+    // do not initialize if only lists tests
+    if (param.starts_with("--benchmark_list_tests") &&
+        !param.starts_with("--benchmark_list_tests=false")) {
+      dry_run = true;
     }
   }
 
@@ -85,6 +89,7 @@ int main(int argc, char *argv[]) {
     ("context", "Additional google benchmark context", cxxopts::value<std::vector<std::string>>())
     ("device-memory", "Use device memory")
     ("weak-scaling", "Scale the vector size by the number of ranks", cxxopts::value<bool>()->default_value("false"))
+    ("benchmark_list_tests", "only lists tests, skip backends initialization")
     ;
   // clang-format on
 
@@ -115,12 +120,14 @@ int main(int argc, char *argv[]) {
   check_results = options.count("check");
   weak_scaling = options["weak-scaling"].as<bool>();
 
-  if (options["weak-scaling"].as<bool>())
+  if (weak_scaling)
     default_vector_size = default_vector_size * ranks;
 
   add_configuration(comm_rank, options);
 
-  dr_init();
+  if (!dry_run)
+    dr_init();
+
   if (rank == 0) {
     benchmark::RunSpecifiedBenchmarks();
   } else {
@@ -130,7 +137,8 @@ int main(int argc, char *argv[]) {
   }
   benchmark::Shutdown();
 
-  dr::mhp::finalize();
+  if (!dry_run)
+    dr::mhp::finalize();
   MPI_Finalize();
 
   return 0;

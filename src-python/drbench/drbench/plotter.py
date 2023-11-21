@@ -201,13 +201,6 @@ class Plotter:
         },
     }
 
-    benchmark_info = {
-        "Stream_Copy": stream_info,
-        "Stream_Add": stream_info,
-        "Stream_Scale": stream_info,
-        "Stream_Triad": stream_info,
-    }
-
     @staticmethod
     def __x_domain(db, target, x_title):
         points = db.loc[db["Target"] == target]
@@ -234,7 +227,7 @@ class Plotter:
     def __bw_plot(self, benchmark, device):
         scaling = "strong"
         x_title = self.device_info[device]["x_title"]
-        bi = self.benchmark_info[benchmark][device]
+        bi = self.stream_info[device]
         y_domain = bi["y_domain"]
         y_title = bi["y_title"]
 
@@ -351,6 +344,7 @@ class Plotter:
                 "Stream_Triad",
             ]:
                 self.__bw_plot(bench, device)
+                self.__bw_plot(bench + "_ishmem", device)
             for bench in [
                 "BlackScholes",
                 "DotProduct",

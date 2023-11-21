@@ -13,8 +13,9 @@ add_executable(
   ../common/inclusive_exclusive_scan.cpp
   ../common/sort.cpp
   ../common/stream.cpp
-  wave_equation.cpp
-  shallow_water.cpp
+        streammhp.cpp
+
+
   rooted.cpp
   stencil_1d.cpp
   stencil_2d.cpp
@@ -24,12 +25,11 @@ add_executable(
 # cmake-format: on
 
 if(NOT ENABLE_CUDA)
-  # black_scholes.cpp does not compile in CUDA because it uses std::log
-  target_sources(mhp-bench PRIVATE ../common/black_scholes.cpp)
+  # does not compile in CUDA because: black_scholes.cpp uses std::log
+  # shallow_water, wave_equation uses uses exp
+  target_sources(mhp-bench PRIVATE ../common/black_scholes.cpp
+                                   shallow_water.cpp wave_equation.cpp)
 endif()
-
-target_compile_definitions(mhp-bench PRIVATE BENCH_MHP)
-target_link_libraries(mhp-bench benchmark::benchmark cxxopts DR::mpi)
 
 # mhp-quick-bench is for development. By reducing the number of source files, it
 # builds much faster. Change the source files to match what you need to test. It
@@ -40,8 +40,12 @@ add_executable(mhp-quick-bench mhp-bench.cpp
   stencil_2d.cpp
   )
 # cmake-format: on
-target_compile_definitions(mhp-quick-bench PRIVATE BENCH_MHP)
-target_link_libraries(mhp-quick-bench benchmark::benchmark cxxopts DR::mpi)
+
+foreach(mhp-bench-exec IN ITEMS mhp-bench mhp-quick-bench)
+  target_compile_definitions(${mhp-bench-exec} PRIVATE BENCH_MHP)
+  target_link_libraries(${mhp-bench-exec} benchmark::benchmark cxxopts DR::mpi)
+  target_link_ishmem(${mhp-bench-exec})
+endforeach()
 
 cmake_path(GET MPI_CXX_ADDITIONAL_INCLUDE_DIRS FILENAME MPI_IMPL)
 

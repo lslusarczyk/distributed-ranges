@@ -210,7 +210,7 @@ auto check_mutate_view_message(auto &ops, rng::range auto &&ref,
       unary_check_message(input_view, actual, ref, "mutated view mismatch");
 
   // Check underlying dv
-  message += unary_check_message(input_vector, ops.vec, ops.dist_vec,
+  message += unary_check_message(input_vector, ops.vec, ops.VecT,
                                  "mutated distributed range mismatch");
 
   return message;

@@ -21,7 +21,7 @@ class SuiteConfig:
         self.dry_run = None
         self.mhp_bench = None
         self.shp_bench = None
-        self.weak_scaling = False
+        self.runner = None
         self.different_devices = False
         self.ranks = 1
         self.ranks_per_node = None
@@ -50,6 +50,13 @@ option_shp_bench = click.option(
     help="SHP benchmark program",
 )
 
+option_runner = click.option(
+    "--runner",
+    default="mpirun",
+    type=str,
+    help="mpirun command possibly wrapped by other script e.g. ishmrun",
+)
+
 option_dry_run = click.option(
     "-d", "--dry-run", is_flag=True, help="Emits commands but does not execute"
 )
@@ -70,6 +77,27 @@ option_different_devices = click.option(
     is_flag=True,
     default=False,
     help="Ensures there are not multiple ranks on one SYCL device",
+)
+
+option_vec_size = click.option(
+    "--vec-size",
+    type=int,
+    default=2000000000,
+    help="Size of a vector",
+)
+
+option_reps = click.option(
+    "--reps",
+    type=int,
+    default=50,
+    help="Number of repetitions",
+)
+
+option_gpus = click.option(
+    "--gpus",
+    type=int,
+    default=0,
+    help="Number of GPUs per node",
 )
 
 
@@ -123,6 +151,7 @@ def do_run(options):
             options.dry_run,
             options.mhp_bench,
             options.shp_bench,
+            options.runner,
             options.weak_scaling,
             options.different_devices,
             options.ranks_per_node,
@@ -134,6 +163,43 @@ def do_run(options):
                 r.run_one_analysis(
                     runner.AnalysisCase(choice_to_target(t), s, n)
                 )
+
+
+def _run_rank_list(base, ranks, filters, targets, weak_scaling=False):
+    options = base
+    options.ranks = ranks
+    options.filter = filters
+    options.target = targets
+    options.weak_scaling = weak_scaling
+    do_run(options)
+
+
+# Run a range of ranks on a single node
+def _run_rank_range(base, ranks, filters, targets, weak_scaling=False):
+    _run_rank_list(
+        base,
+        list(range(1, ranks + 1)),
+        filters,
+        targets,
+        weak_scaling,
+    )
+
+
+# Run a range of nodes
+def _run_node_range(
+    base, ranks_per_node, nodes, filters, targets, weak_scaling=False
+):
+    options = base
+    options.ranks_per_node = ranks_per_node
+    _run_rank_list(
+        options,
+        list(
+            range(ranks_per_node, ranks_per_node * nodes + 1, ranks_per_node)
+        ),
+        filters,
+        targets,
+        weak_scaling,
+    )
 
 
 @cli.command()
@@ -181,6 +247,7 @@ def do_run(options):
 )
 @option_mhp_bench
 @option_shp_bench
+@option_runner
 @option_dry_run
 @option_clean
 @option_weak_scaling
@@ -197,6 +264,7 @@ def run(
     filter,
     mhp_bench,
     shp_bench,
+    runner,
     dry_run,
     clean,
     weak_scaling,
@@ -216,60 +284,38 @@ def run(
         )
 
     options.prefix = prefix
-    options.target = target
     options.vec_size = vec_size
-    options.ranks_per_node = ranks_per_node
-    options.ranks = ranks
-    if rank_range:
-        options.ranks = list(range(1, rank_range + 1))
-    if node_range:
-        options.ranks = list(
-            range(
-                ranks_per_node, node_range * ranks_per_node + 1, ranks_per_node
-            )
-        )
     options.reps = reps
-    options.filter = filter
     options.mhp_bench = mhp_bench
     options.shp_bench = shp_bench
-    options.weak_scaling = weak_scaling
+    options.runner = runner
     options.different_devices = different_devices
     options.dry_run = dry_run
 
-    do_run(options)
+    if rank_range:
+        _run_rank_range(options, rank_range, filter, target, weak_scaling)
+    elif node_range:
+        _run_node_range(options, ranks_per_node, node_range, filter, target)
+    else:
+        _run_rank_list(options, ranks, filter, target, weak_scaling)
 
 
 @cli.command()
 @option_prefix
 @option_mhp_bench
 @option_shp_bench
+@option_runner
 @option_dry_run
 @option_clean
-@option_weak_scaling
 @option_different_devices
-@click.option(
-    "--vec-size",
-    type=int,
-    default=2000000000,
-    help="Size of a vector",
-)
-@click.option(
-    "--reps",
-    type=int,
-    default=50,
-    help="Number of repetitions",
-)
+@option_vec_size
+@option_reps
 @click.option(
     "--nodes",
     type=int,
     help="Number of nodes",
 )
-@click.option(
-    "--gpus",
-    type=int,
-    default=0,
-    help="Number of GPUs per node",
-)
+@option_gpus
 @click.option(
     "--no-p2p",
     "p2p",
@@ -292,8 +338,10 @@ def suite(
     prefix,
     mhp_bench,
     shp_bench,
+    runner,
     dry_run,
     clean,
+    different_devices,
     vec_size,
     reps,
     nodes,
@@ -301,42 +349,8 @@ def suite(
     p2p,
     sockets,
     cores_per_socket,
-    weak_scaling,
-    different_devices,
 ):
     # Run a list of ranks
-    def run_rank_list(base, ranks, filters, targets, weak_scaling=False):
-        options = base
-        options.ranks = ranks
-        options.filter = filters
-        options.target = targets
-        options.weak_scaling = weak_scaling
-        do_run(options)
-
-    # Run a range of ranks on a single node
-    def run_rank_range(base, ranks, filters, targets, weak_scaling=False):
-        run_rank_list(
-            base,
-            list(range(1, ranks + 1)),
-            filters,
-            targets,
-            weak_scaling,
-        )
-
-    # Run a range of nodes
-    def run_node_range(base, ranks_per_node, filters, targets):
-        options = base
-        options.ranks_per_node = ranks_per_node
-        run_rank_list(
-            options,
-            list(
-                range(
-                    ranks_per_node, ranks_per_node * nodes + 1, ranks_per_node
-                )
-            ),
-            filters,
-            targets,
-        )
 
     def single_node(base):
         #
@@ -344,30 +358,30 @@ def suite(
         #
         if gpus > 0:
             # if benchmark does not need p2p run xhp on all gpus
-            run_rank_range(
+            _run_rank_range(
                 base, gpus, dr_nop2p, ["shp_sycl_gpu", "mhp_sycl_gpu"]
             )
             # if benchmark needs p2p run on mhp on all gpus
-            run_rank_range(base, gpus, mhp_filters + dr_p2p, ["mhp_sycl_gpu"])
-            run_rank_range(
-                base,
-                gpus,
-                mhp_filters + dr_p2p,
-                ["mhp_sycl_gpu"],
-                weak_scaling=True,
-            )
+            for ws in [True, False]:
+                _run_rank_range(
+                    base,
+                    gpus,
+                    mhp_filters + dr_p2p,
+                    ["mhp_sycl_gpu"],
+                    weak_scaling=ws,
+                )
             # Run reference benchmarkson 1 device, use shp_sycl_gpu to
             # get sycl env vars
-            run_rank_range(base, 1, reference_filters, ["shp_sycl_gpu"])
-            run_rank_range(base, 1, mhp_reference_filters, ["mhp_sycl_gpu"])
-            run_rank_range(base, 1, shp_reference_filters, ["shp_sycl_gpu"])
+            _run_rank_range(base, 1, reference_filters, ["shp_sycl_gpu"])
+            _run_rank_range(base, 1, mhp_reference_filters, ["mhp_sycl_gpu"])
+            _run_rank_range(base, 1, shp_reference_filters, ["shp_sycl_gpu"])
         if p2p_gpus > 0:
             # if benchmark needs p2p run on shp on 1 gpu
-            run_rank_range(
+            _run_rank_range(
                 base, p2p_gpus, shp_filters + dr_p2p, ["shp_sycl_gpu"]
             )
         if p2p_gpus > 1:
-            run_rank_range(
+            _run_rank_range(
                 base,
                 p2p_gpus,
                 shp_filters + dr_p2p,
@@ -380,13 +394,13 @@ def suite(
         #
         if sockets > 0:
             # SYCL on CPU, a socket (Affinity domain) is a device
-            run_rank_range(
+            _run_rank_range(
                 base,
                 sockets,
                 dr_filters,
                 ["mhp_sycl_cpu", "shp_sycl_cpu"],
             )
-            run_rank_range(
+            _run_rank_range(
                 base,
                 sockets,
                 mhp_filters,
@@ -394,10 +408,10 @@ def suite(
             )
             # Run reference benchmarks on 1 device, use shp_sycl_cpu to
             # get sycl env vars
-            run_rank_range(base, 1, reference_filters, ["shp_sycl_cpu"])
-            run_rank_range(base, 1, mhp_reference_filters, ["mhp_sycl_cpu"])
+            _run_rank_range(base, 1, reference_filters, ["shp_sycl_cpu"])
+            _run_rank_range(base, 1, mhp_reference_filters, ["mhp_sycl_cpu"])
             # 1 and 2 sockets for direct cpu
-            run_rank_list(
+            _run_rank_list(
                 base,
                 list(
                     range(
@@ -416,16 +430,17 @@ def suite(
         #
         if gpus > 0:
             # if benchmark does not need p2p run xhp on all gpus
-            run_node_range(base, gpus, dr_filters, ["mhp_sycl_gpu"])
+            _run_node_range(base, gpus, nodes, dr_filters, ["mhp_sycl_gpu"])
 
         #
         # CPU devices
         #
         if sockets > 0:
-            run_node_range(base, sockets, dr_filters, ["mhp_sycl_cpu"])
-            run_node_range(
+            _run_node_range(base, sockets, nodes, dr_filters, ["mhp_sycl_cpu"])
+            _run_node_range(
                 base,
                 sockets * cores_per_socket,
+                nodes,
                 dr_filters,
                 ["mhp_direct_cpu"],
             )
@@ -470,16 +485,13 @@ def suite(
     base.prefix = prefix
     base.mhp_bench = mhp_bench
     base.shp_bench = shp_bench
+    base.runner = runner
     base.dry_run = dry_run
     base.vec_size = [vec_size]
     base.reps = reps
-    base.weak_scaling = weak_scaling
     base.different_devices = different_devices
 
-    logging.info(
-        f"starting suite, weak_scaling:{weak_scaling}, "
-        f"different_devices:{different_devices}"
-    )
+    logging.info(f"starting suite different_devices:{different_devices}")
 
     # if the platform does not support p2p, limit gpus to 1
     if p2p:
@@ -494,6 +506,46 @@ def suite(
         multi_node(base)
     else:
         single_node(base)
+
+
+@cli.command()
+@option_prefix
+@option_mhp_bench
+@option_shp_bench
+@option_runner
+@option_dry_run
+@option_clean
+@option_vec_size
+@option_reps
+@option_gpus
+def mhp_sycl_gpu_suite(
+    prefix,
+    mhp_bench,
+    shp_bench,
+    runner,
+    dry_run,
+    clean,
+    vec_size,
+    reps,
+    gpus,
+):
+    base = SuiteConfig()
+    base.prefix = prefix
+    base.mhp_bench = mhp_bench
+    base.shp_bench = shp_bench
+    base.runner = runner
+    base.dry_run = dry_run
+    base.vec_size = [vec_size]
+    base.reps = reps
+    base.different_devices = False
+
+    if clean and not dry_run:
+        do_clean(prefix)
+
+    logging.info("starting MHP quick suite")
+    _run_rank_range(
+        base, gpus, ["^Stream_"], ["mhp_sycl_gpu"], weak_scaling=False
+    )
 
 
 if __name__ == "__main__":

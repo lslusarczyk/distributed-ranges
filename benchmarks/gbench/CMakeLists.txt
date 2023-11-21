@@ -62,6 +62,15 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
       COMMAND dr-bench plot --prefix aurora-4
       DEPENDS xhp-bench)
 
+    add_custom_target(aurora-ishmem-bench DEPENDS aurora-ishmem-bench-results)
+    add_custom_command(
+      OUTPUT aurora-ishmem-bench-resuls
+      COMMAND dr-bench clean --prefix aurora-ishmem
+      COMMAND dr-bench run --prefix aurora-ishmem --target mhp_sycl_gpu --filter
+              ^Stream_ --rank-range 12
+      COMMAND dr-bench plot --prefix aurora-ishmem
+      DEPENDS xhp-bench)
+
     add_custom_target(quick-bench-gpu DEPENDS quick-bench-gpu-results)
     add_custom_command(
       OUTPUT quick-bench-gpu-results

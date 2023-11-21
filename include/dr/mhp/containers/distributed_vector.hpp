@@ -294,6 +294,11 @@ private:
   BackendT backend;
 };
 
+#ifdef DRISHMEM
+template <class T>
+using distributed_vector_ishmem = distributed_vector<T, IshmemBackend>;
+#endif
+
 template <typename T, typename B>
 auto &halo(const distributed_vector<T, B> &dv) {
   return dv.halo();
