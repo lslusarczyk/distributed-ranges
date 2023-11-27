@@ -64,10 +64,12 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 
     add_custom_target(aurora-ishmem-bench DEPENDS aurora-ishmem-bench-results)
     add_custom_command(
-      OUTPUT aurora-ishmem-bench-resuls
+      OUTPUT aurora-ishmem-bench-results
       COMMAND dr-bench clean --prefix aurora-ishmem
-      COMMAND dr-bench run --prefix aurora-ishmem --target mhp_sycl_gpu --filter
-              ^Stream_ --rank-range 12
+      COMMAND
+        dr-bench run --prefix aurora-ishmem --target mhp_sycl_gpu --filter
+        ^Stream_.*ishmem --rank-range 6 --mhp-bench
+        ../../bin/ishmrun\ mhp/mhp-bench --runner mpiexec.hydra
       COMMAND dr-bench plot --prefix aurora-ishmem
       DEPENDS xhp-bench)
 

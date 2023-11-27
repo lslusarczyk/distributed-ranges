@@ -54,7 +54,7 @@ option_runner = click.option(
     "--runner",
     default="mpirun",
     type=str,
-    help="mpirun command possibly wrapped by other script e.g. ishmrun",
+    help="mpirun command to be used",
 )
 
 option_dry_run = click.option(
@@ -506,46 +506,6 @@ def suite(
         multi_node(base)
     else:
         single_node(base)
-
-
-@cli.command()
-@option_prefix
-@option_mhp_bench
-@option_shp_bench
-@option_runner
-@option_dry_run
-@option_clean
-@option_vec_size
-@option_reps
-@option_gpus
-def mhp_sycl_gpu_suite(
-    prefix,
-    mhp_bench,
-    shp_bench,
-    runner,
-    dry_run,
-    clean,
-    vec_size,
-    reps,
-    gpus,
-):
-    base = SuiteConfig()
-    base.prefix = prefix
-    base.mhp_bench = mhp_bench
-    base.shp_bench = shp_bench
-    base.runner = runner
-    base.dry_run = dry_run
-    base.vec_size = [vec_size]
-    base.reps = reps
-    base.different_devices = False
-
-    if clean and not dry_run:
-        do_clean(prefix)
-
-    logging.info("starting MHP quick suite")
-    _run_rank_range(
-        base, gpus, ["^Stream_"], ["mhp_sycl_gpu"], weak_scaling=False
-    )
 
 
 if __name__ == "__main__":
