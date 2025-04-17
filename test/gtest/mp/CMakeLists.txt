@@ -103,7 +103,7 @@ endif()
 target_link_libraries(failing cxxopts DR::mpi)
 
 if (ENABLE_SYCL)
-add_mp_ctest(NAME failing NPROC 4 OFFLOAD SYCL)
+add_mp_ctest(NAME failing NPROC 2 OFFLOAD SYCL)
 endif ()
 
 

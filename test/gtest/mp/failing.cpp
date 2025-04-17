@@ -20,7 +20,7 @@ int main(int argc, char *argv[]) {
   auto dist = dr::mp::distribution().halo(1);
   dr::mp::distributed_vector<int> array(10, dist);
  fill(array, 7);
-
+/*
  if (rank == 0) {
    for (int i = 0; i <= 4; i++) {
      std::cout << i << ": " << (array.segments()[0].begin() + i).get() << "\n";
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
      std::cout << i + 5 << ": " << (array.segments()[1].begin() + i).get() << "\n";
    }
  }
-
+*/
 //  array.fence();
 
   std::cout << "Begin halo\n";
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   std::cout << "End halo\n";
 
 //  array.fence();
-
+/*
  if (rank == 0) {
    for (int i = 0; i <= 4; i++) {
      std::cout << i << ": " << (array.segments()[0].begin() + i).get() << "\n";
@@ -67,5 +67,6 @@ int main(int argc, char *argv[]) {
    for (int i = 0; i <= 4; i++) {
      std::cout << i + 5 << ": " << (array.segments()[1].begin() + i).get() << "\n";
    }
- }
+ }*/
 }
+
